@@ -4,8 +4,7 @@
   "description": "api for near future lab",
   "main": "app.js",
   "scripts": {
-    "prod": "pm2 start index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js"
   },
   "author": "",
   "license": "ISC",
@@ -17,10 +16,9 @@
     "firebase-admin": "^12.3.1",
     "form-data": "^4.0.0",
     "localtunnel": "^2.0.2",
-    "mailgun-js": "^0.22.0",
-    "mailgun.js": "^10.2.3",
     "node-schedule": "^2.1.1",
     "stripe": "^16.7.0",
+    "vercel": "^37.2.1",
     "vue-codemirror": "^6.1.1"
   }
 }
