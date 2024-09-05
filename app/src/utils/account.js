@@ -1,21 +1,23 @@
 import { v4 as uuidv4 } from "uuid";
+import { getCouple } from "./couple";
 import store from "@/store";
 
-const api = location.href.includes("192.168.3.20")
-  ? "http://localhost:10100"
-  : "https://api.mailmonster.com.br";
+const collection = "account";
+const api = "https://api.couplingbetter.com";
 
 const updateAccount = async ({ id, data }) => {
   try {
-    const account = await getAccount({ id, setStore: false });
-    const accountRef = doc(firestore, "accounts", id);
-    await setDoc(accountRef, {
-      ...account,
-      ...data,
-      updated_at: new Date(),
-    });
-    getAccount({ id });
-    return true;
+    await fetch(`${api}/firebase`, {
+      body: JSON.stringify({
+        collection,
+        id,
+        data,
+      }),
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+    }).then((data) => data.json());
   } catch (error) {
     console.error("Error adding document: ", error);
   }
@@ -27,7 +29,7 @@ const createAccount = async ({ data, setStore = true }) => {
     data.uuid = uuid;
     await fetch(`${api}/firebase`, {
       body: JSON.stringify({
-        collection: "account",
+        collection,
         data,
       }),
       method: "POST",
@@ -36,8 +38,8 @@ const createAccount = async ({ data, setStore = true }) => {
       },
     })
       .then((data) => data.json())
-      .then((res) => {
-        if (setStore) getAccount({ id: res.data.id });
+      .then(async (res) => {
+        if (setStore) await getAccount({ id: res.id });
       });
   } catch (error) {
     console.error("Error adding document: ", error);
@@ -45,40 +47,39 @@ const createAccount = async ({ data, setStore = true }) => {
 };
 
 const getAccount = async ({ id, setStore = true }) => {
-  return await fetch(`${api}/firebase/get`, {
+  return await fetch(`${api}/firebase/single`, {
     body: JSON.stringify({
-      collection: "account",
+      collection,
       id,
     }),
     method: "POST",
     headers: {
       "content-type": "application/json",
-      From: "mail-monster",
     },
   })
     .then((data) => data.json())
     .then((res) => {
-      if (setStore) store.commit("setAccount", res[0]);
-      return res[0];
+      if (setStore) store.commit("setAccount", res);
+      return res;
     });
 };
 
 const accountExists = async ({ owner }) => {
   const accountExist = await fetch(`${api}/firebase/get`, {
     body: JSON.stringify({
-      collection: "account",
+      collection,
       where: [{ field: "owner", operator: "==", value: owner }],
     }),
     method: "POST",
     headers: {
       "content-type": "application/json",
-      From: "mail-monster",
     },
   })
     .then((data) => data.json())
-    .then((data) => data[0]);
-  console.log(accountExist);
-  return accountExist?.uuid;
+    .then((res) => {
+      return !res.empty;
+    });
+  return accountExist;
 };
 
 const loginAccount = async ({ id }) => {
@@ -86,18 +87,29 @@ const loginAccount = async ({ id }) => {
     console.log(id);
     await fetch(`${api}/firebase/get`, {
       body: JSON.stringify({
-        collection: "account",
+        collection,
         where: [{ field: "owner", operator: "==", value: id }],
       }),
       method: "POST",
       headers: {
         "content-type": "application/json",
-        From: "mail-monster",
       },
     })
       .then((data) => data.json())
-      .then((res) => {
-        store.commit("setAccount", res[0]);
+      .then(async (res) => {
+        const account = res[0];
+        store.commit("setAccount", account);
+
+        const couple = await getCouple({ id: account.couple_id });
+        const otherHalfId = couple.accounts.filter(
+          (account_id) => account_id !== account.id
+        )[0];
+
+        const otherHalfAccount = await getAccount({
+          id: otherHalfId,
+          setStore: false,
+        });
+        store.commit("setOtherHalfAccount", otherHalfAccount);
       });
     return true;
   } catch (error) {
@@ -105,8 +117,27 @@ const loginAccount = async ({ id }) => {
   }
 };
 
+const getAccountByEmail = async ({ email }) => {
+  try {
+    const account = await fetch(`${api}/firebase/get`, {
+      body: JSON.stringify({
+        collection,
+        where: [{ field: "email", operator: "==", value: email }],
+      }),
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+    }).then((data) => data.json());
+    return account;
+  } catch (error) {
+    console.error("Error adding document: ", error);
+  }
+};
+
 export {
   accountExists,
+  getAccountByEmail,
   updateAccount,
   createAccount,
   getAccount,

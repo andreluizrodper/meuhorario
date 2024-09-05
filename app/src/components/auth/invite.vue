@@ -1,59 +1,34 @@
 <template>
   <div class="grid gap-6">
-    <form @submit.prevent="doCreateAccount">
-      <div class="grid gap-2">
+    <form @submit.prevent="doLogin">
+      <div class="grid gap-3">
         <div class="grid gap-1">
-          <Label class="sr-only" for="name"> Nome </Label>
+          <Label class="sr-only" for="phone"> Telefone </Label>
           <Input
-            v-model="name"
-            id="name"
-            placeholder="Seu nome"
+            v-model="phone"
+            id="phone"
+            placeholder="Seu telefone"
             type="text"
-            auto-capitalize="none"
-            auto-correct="off"
-            :disabled="isLoading"
+            :disabled="loading"
+            v-mask="`(##) #####-####`"
           />
         </div>
-        <div class="grid gap-1">
-          <Label class="sr-only" for="email"> Email </Label>
-          <Input
-            v-model="email"
-            id="email"
-            placeholder="Seu email"
-            type="email"
-            auto-capitalize="none"
-            auto-complete="email"
-            auto-correct="off"
-            disabled
-          />
-        </div>
-        <div class="grid gap-1">
-          <Label class="sr-only" for="password"> Senha </Label>
-          <Input
-            v-model="pwd"
-            id="password"
-            placeholder="Sua senha"
-            type="password"
-            auto-capitalize="none"
-            auto-correct="off"
-            :disabled="isLoading"
-          />
-        </div>
-        <Button :disabled="isLoading">
-          <LoaderCircle v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
-          Criar a minha conta
+        <Button id="sign-in-button" :disabled="loading">
+          <LoaderCircle v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          Entrar
         </Button>
       </div>
     </form>
-    <Button variant="link" size="sm" as-child>
-      <router-link
-        class="flex items-center justify-center text-center text-base text-sm text-gray-600 hover:text-gray-800"
-        :to="{ name: 'login' }"
-      >
-        <ArrowLeft class="mr-2 inline h-4 w-4" />
-        Entrar na sua conta
-      </router-link>
-    </Button>
+    <div id="recaptcha-container" />
+    <hr />
+    <div class="flex justify-center">
+      <Button @click="doLoginGoogle" variant="outline">
+        <span class="flex items-center justify-center gap-4">
+          <img src="@/assets/google.png" class="w-[24px]" />
+          Entrar com Google
+        </span>
+      </Button>
+    </div>
   </div>
 </template>
 
@@ -62,11 +37,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoaderCircle } from "lucide-vue-next";
-import { updateProfile, createUserWithEmailAndPassword } from "firebase/auth";
+import Loading from "@/components/ui/loading.vue";
+import { loginAccount, createAccount, accountExists } from "@/utils/account.js";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  getAuth,
+} from "firebase/auth";
+import { createCouple } from "@/utils/couple.js";
+import { mask } from "vue-the-mask";
 import { auth } from "@/utils/firebase.js";
-import { updateAccount } from "@/utils/account.js";
-import { ArrowLeft } from "lucide-vue-next";
-import { getAccount, loginAccount } from "@/utils/account.js";
 
 export default {
   components: {
@@ -74,56 +56,62 @@ export default {
     Input,
     Label,
     LoaderCircle,
-    ArrowLeft,
+    Loading,
   },
+  directives: { mask },
   data() {
     return {
-      name: "",
-      email: "",
-      pwd: "",
-      isLoading: false,
+      phone: "",
+      loading: false,
       error: false,
       message: "",
-      account: null,
+      signPossible: false,
+      recaptchaVerifier: null,
     };
   },
-  async mounted() {
-    this.account = await getAccount({
-      id: this.$route.params.account_id,
-      setStore: false,
-    });
-    this.email = this.account.email;
+  mounted() {
+    this.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container");
+    this.signPossible = true;
   },
   methods: {
-    doCreateAccount() {
-      this.isLoading = true;
+    doLoginGoogle() {
+      const provider = new GoogleAuthProvider();
+      signInWithPopup(auth, provider).then(async (result) => {
+        const doAccountExists = await accountExists({ owner: result.user.uid });
+        if (!doAccountExists) {
+          const data = {
+            name: result.user.displayName,
+            email: result.user.email,
+            owner: result.user.uid,
+          };
+          await createAccount({ data });
+          await createCouple();
+          this.$router.push({ name: "feed" });
+        } else {
+          await loginAccount({ id: result.user.uid });
+          await createCouple();
+          this.$router.push({ name: "feed" });
+        }
+      });
+    },
+    doLogin() {
+      this.loading = true;
       this.error = false;
       this.message = "";
-      createUserWithEmailAndPassword(auth, this.email, this.pwd)
-        .then(async (result) => {
-          await updateProfile(auth.currentUser, {
-            displayName: this.name,
+      this.$store.commit("setPhone", this.phone);
+      const phone = this.phone.replace(/[ |(|)|-]/g, "");
+      signInWithPhoneNumber(auth, `+55${phone}`, this.recaptchaVerifier)
+        .then((confirmationResult) => {
+          this.$router.push({
+            name: "pin",
+            params: { code: confirmationResult.verificationId },
           });
-          this.$store.commit("setUser", result.user);
-          const data = {
-            name: this.name,
-            email: this.email,
-            owner: result.user.uid,
-            active: true,
-          };
-          this.isLoading = false;
-          await updateAccount({ id: this.$route.params.account_id, data });
-          await loginAccount({ id: result.user.uid });
-          this.$router.push({ name: "dashboard" });
         })
         .catch((error) => {
-          this.isLoading = false;
-          if (error.message?.indexOf("email-already-in-use") > 0) {
-            this.message = "E-mail já em uso.";
-          } else {
-            this.message = error.message;
-          }
-          this.error = true;
+          this.loading = false;
+          console.log(error);
+          this.message =
+            "Alguma coisa deu errado por aqui, tente novamente mais tarde.";
         });
     },
   },

@@ -1,8 +1,5 @@
 <template>
   <div class="flex flex-col items-center justify-center gap-4">
-    <div class="text-center">
-      Você recebeu um código no número {{ phone }}, insira o código abaixo.
-    </div>
     <PinInput
       id="pin-input"
       v-model="value"
@@ -29,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { LoaderCircle } from "lucide-vue-next";
 import Loading from "@/components/ui/loading.vue";
 import { loginAccount, createAccount, accountExists } from "@/utils/account.js";
+import { createCouple } from "@/utils/couple.js";
 import { PhoneAuthProvider, signInWithCredential } from "firebase/auth";
 import { auth } from "@/utils/firebase.js";
 import {
@@ -57,8 +55,8 @@ export default {
     };
   },
   computed: {
-    phone() {
-      return this.$store.state.phone;
+    couple() {
+      return this.$store.state.createCouple;
     },
   },
   methods: {
@@ -66,7 +64,7 @@ export default {
       this.loading = true;
       var credential = PhoneAuthProvider.credential(
         this.$route.params.code,
-        this.value.join(""),
+        this.value.join("")
       );
       signInWithCredential(auth, credential)
         .then(async (result) => {
@@ -75,15 +73,22 @@ export default {
           });
           if (!doAccountExists) {
             const data = {
-              phone: this.phone,
+              name: result.user.displayName,
+              email: result.user.email,
+              owner: result.user.uid,
             };
             await createAccount({ data });
+            if (this.couple) createCouple();
+            this.$router.push({ name: "feed" });
+          } else {
+            await loginAccount({ id: result.user.uid });
+            if (this.couple) createCouple();
+            this.$router.push({ name: "feed" });
           }
-          await loginAccount({ id: result.user.uid });
-          this.$router.push({ name: "dashboard" });
           this.loading = false;
         })
         .catch((e) => {
+          console.log(e, "error");
           this.loading = false;
           this.$store.commit("addToast", {
             description: "Código inválido, solicite um código novo.",

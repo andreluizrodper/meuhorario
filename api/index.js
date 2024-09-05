@@ -6,6 +6,7 @@ const { router } = require("./email");
 const stripe = require("./stripe");
 const firebase = require("./firebase");
 const app = express();
+const port = process.env.PORT || 56210;
 
 app.use(
   cors({
@@ -23,10 +24,10 @@ app.use("/email", router);
 app.use("/firebase", firebase);
 app.use("/stripe", stripe);
 
-app.get("/", (req, res) => {
-  res.send("hey youaaa");
+app.get("/", (res) => {
+  res.send("This is it.");
 });
 
-app.listen(10100, function () {
-  console.log("Started application on port %d", 10100);
+app.listen(port, function () {
+  console.log("Started application on port %d", port);
 });
