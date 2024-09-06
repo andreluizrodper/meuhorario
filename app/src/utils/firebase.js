@@ -11,7 +11,7 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig, "MeuHorario");
 const auth = getAuth(app);
 const storage = getStorage(app);
 

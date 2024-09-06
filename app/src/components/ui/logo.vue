@@ -2,7 +2,7 @@
   <div class="flex items-center gap-2">
     <span class="size-16 rounded-full bg-gray-100" />
     <div class="flex flex-col">
-      <span class="leading-thight text-lg font-medium">Get Booked</span>
+      <span class="leading-thight text-lg font-medium">Meu Horário</span>
       <span v-if="showTagLine" class="text-xs text-gray-700"
         >Controle a agenda do seu negócio, sem complicação</span
       >
