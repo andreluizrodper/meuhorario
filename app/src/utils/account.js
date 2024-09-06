@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from "uuid";
-import { getCouple } from "./couple";
 import store from "@/store";
 
 const api = "https://api.meuhorario.co";
@@ -99,17 +98,6 @@ const loginAccount = async ({ id }) => {
       .then(async (res) => {
         const account = res[0];
         store.commit("setAccount", account);
-
-        const couple = await getCouple({ id: account.couple_id });
-        const otherHalfId = couple.accounts.filter(
-          (account_id) => account_id !== account.id,
-        )[0];
-
-        const otherHalfAccount = await getAccount({
-          id: otherHalfId,
-          setStore: false,
-        });
-        store.commit("setOtherHalfAccount", otherHalfAccount);
       });
     return true;
   } catch (error) {
