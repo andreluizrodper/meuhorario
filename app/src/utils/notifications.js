@@ -2,9 +2,8 @@ import { v4 as uuidv4 } from "uuid";
 import store from "@/store";
 import { getAccount } from "./account";
 
-const api = location.href.includes("192.168.3.20")
-  ? "http://localhost:10100"
-  : "https://api.mailmonster.com.br";
+const api = "https://api.meuhorario.co";
+const collection = "services";
 
 const getNotifications = async () => {
   return await fetch(`${api}/firebase/get`, {

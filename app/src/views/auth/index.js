@@ -14,21 +14,6 @@ const routes = [
         component: () => import("@/views/auth/pin.vue"),
       },
       {
-        path: "register",
-        name: "register",
-        component: () => import("@/views/auth/register.vue"),
-      },
-      {
-        path: "forgot-password",
-        name: "forgot-password",
-        component: () => import("@/views/auth/forgot-password.vue"),
-      },
-      {
-        path: "reset-password",
-        name: "reset-password",
-        component: () => import("@/views/auth/reset-password.vue"),
-      },
-      {
         path: "invite/:account_id",
         name: "invite",
         component: () => import("@/views/auth/invite.vue"),

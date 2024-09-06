@@ -2,8 +2,8 @@ import { v4 as uuidv4 } from "uuid";
 import { getCouple } from "./couple";
 import store from "@/store";
 
+const api = "https://api.meuhorario.co";
 const collection = "account";
-const api = "https://api.couplingbetter.com";
 
 const updateAccount = async ({ id, data }) => {
   try {
@@ -102,7 +102,7 @@ const loginAccount = async ({ id }) => {
 
         const couple = await getCouple({ id: account.couple_id });
         const otherHalfId = couple.accounts.filter(
-          (account_id) => account_id !== account.id
+          (account_id) => account_id !== account.id,
         )[0];
 
         const otherHalfAccount = await getAccount({

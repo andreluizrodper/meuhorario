@@ -4,26 +4,37 @@
       <div class="grid gap-3">
         <div class="grid gap-1">
           <Label class="sr-only" for="phone"> Telefone </Label>
-          <div class="relative z-30">
-            <MazPhoneNumberInput
-              @update="updatePhone"
-              style=""
-              :noExample="true"
-            />
-          </div>
+          <Input
+            v-model="phone"
+            id="phone"
+            placeholder="Seu telefone"
+            type="text"
+            :disabled="loading"
+            v-mask="`(##) #####-####`"
+          />
         </div>
-        <Button id="sign-in-button" :disabled="loading">
+        <Button id="sign-in-button" :disabled="loading" variant="purple">
           <LoaderCircle v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           Entrar
         </Button>
       </div>
     </form>
-    <div id="recaptcha-container" />
+    <div class="flex justify-center">
+      <div id="recaptcha-container" />
+    </div>
     <hr />
     <div class="flex justify-center">
       <Button @click="doLoginGoogle" variant="outline">
         <span class="flex items-center justify-center gap-4">
-          <img src="@/assets/google.png" class="w-[24px]" />
+          <LoaderCircle
+            v-if="loadingGoogle"
+            class="mr-2 h-4 w-4 animate-spin"
+          />
+          <img
+            v-if="!loadingGoogle"
+            src="@/assets/google.png"
+            class="w-[24px]"
+          />
           Entrar com Google
         </span>
       </Button>
@@ -32,8 +43,6 @@
 </template>
 
 <script>
-import MazPhoneNumberInput from "maz-ui/components/MazPhoneNumberInput";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,18 +66,17 @@ export default {
     Label,
     LoaderCircle,
     Loading,
-    MazPhoneNumberInput,
   },
   directives: { mask },
   data() {
     return {
       phone: "",
       loading: false,
+      loadingGoogle: false,
       error: false,
       message: "",
       signPossible: false,
       recaptchaVerifier: null,
-      countryCode: null,
     };
   },
   mounted() {
@@ -76,10 +84,8 @@ export default {
     this.signPossible = true;
   },
   methods: {
-    updatePhone(phone) {
-      this.phone = phone.e164;
-    },
     doLoginGoogle() {
+      this.loadingGoogle = true;
       const provider = new GoogleAuthProvider();
       signInWithPopup(auth, provider).then(async (result) => {
         const doAccountExists = await accountExists({ owner: result.user.uid });
@@ -90,19 +96,19 @@ export default {
             owner: result.user.uid,
           };
           await createAccount({ data });
-          this.$router.push({ name: "feed" });
-        } else {
-          await loginAccount({ id: result.user.uid });
-          this.$router.push({ name: "feed" });
         }
+        await loginAccount({ id: result.user.uid });
+        this.loadingGoogle = false;
+        this.$router.push({ name: "dashboard" });
       });
     },
     doLogin() {
       this.loading = true;
       this.error = false;
       this.message = "";
-      this.$store.commit("setPhone", this.phone);
-      signInWithPhoneNumber(auth, this.phone, this.recaptchaVerifier)
+      this.$store.commit("setNumber", this.phone);
+      const phone = this.phone.replace(/[ |(|)|-]/g, "");
+      signInWithPhoneNumber(auth, `+55${phone}`, this.recaptchaVerifier)
         .then((confirmationResult) => {
           this.$router.push({
             name: "pin",
@@ -111,9 +117,12 @@ export default {
         })
         .catch((error) => {
           this.loading = false;
-          console.log(error);
-          this.message =
-            "Alguma coisa deu errado por aqui, tente novamente mais tarde.";
+          this.$store.commit("addToast", {
+            description:
+              "Não conseguimos enviar o código agora, tente novamente mais tarde.",
+          });
+          this.error = true;
+          this.loading = false;
         });
     },
   },
